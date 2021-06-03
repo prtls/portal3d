@@ -5,60 +5,18 @@
 #include <SDL2/SDL.h>
 
 //USER-DEFINED INCLUDES
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+#include "../include/display.h"
 
 //GLOBAL VARIABLES
 bool is_running = false;
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
-uint32_t* color_buffer = NULL;
-SDL_Texture* color_buffer_texture = NULL;
 
-/**
- * Initializes an SDL window and the renderer for that window
- *
- * @return  boolean to denote if window opened successfully or not
- */
-bool initialize_window(void) {
-    //Initialize SDL with this argument defined in SDL
-    //which allows us to initialize everything we need (graphics, hardware, etc)
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-        fprintf(stderr, "Error initializing SDL.\n");
-        return false;
-    }
-    //Create an SDL Window
-    //args: window title, top left x/y pos, size, custom flags
-    window = SDL_CreateWindow(
-        NULL,
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        800,
-        600,
-        SDL_WINDOW_BORDERLESS
-    );
-    if (!window) {
-        fprintf(stderr, "Error creating SDL window.\n");
-        return false;
-    }
-
-    // Create a SDL renderer
-    //args: ptr to window it belongs to, display device (-1 = default graphics driver), custom flags
-    renderer = SDL_CreateRenderer(window, -1, 0);
-    if (!renderer) {
-        fprintf(stderr, "Error creating SDL renderer.\n");
-        return false;
-    }
-
-    return true;
-}
 
 /**
  * (description for setup)
  */
 void setup(void) {
 	//allocate the required bytes in memory for the color buffer
-	color_buffer = (uint32_t*) malloc(sizeof(uint32_t) * WINDOW_WIDTH * WINDOW_HEIGHT);
+	color_buffer = (uint32_t*) malloc(sizeof(uint32_t) * window_width * window_height);
 
 	// Create SDL texture that is used to display the color buffer
 	// remember, the color buffer is just a data structure that holds the pixel values,
@@ -68,8 +26,8 @@ void setup(void) {
 		renderer, //renderer that will be responsible for displaying this texture
 		SDL_PIXELFORMAT_ARGB8888, //choose an appropriate pixel format
 		SDL_TEXTUREACCESS_STREAMING, //pass this when we're going to continuously stream this texture
-		WINDOW_WIDTH, //width of the actual texture (not always window width)
-		WINDOW_HEIGHT //height of actual texture (not always window height)
+		window_width, //width of the actual texture (not always window width)
+		window_height //height of actual texture (not always window height)
 	);
 }
 
@@ -98,53 +56,6 @@ void update(void) {
     // TODO:
 }
 
-/**
- * Get the color buffer in memory and copy all of those pixel's values to
- * the texture so they can be displayed
- */
-void render_color_buffer(void) {
-	//copy all pixel values in color_buffer to color_buffer_texture
-	SDL_UpdateTexture(
-		color_buffer_texture, //the texture to be updated
-		NULL, //used if we only want subsection of texture, we want the entire thing in this case
-		color_buffer, //source to copy to texture
-		(int)(WINDOW_WIDTH * sizeof(uint32_t)) //texture pitch (size, in bytes, of each row)
-	);
-
-	//Go and actually display these things
-	//3rd and 4th args are to specify a subsection of the texture, NULL if we want entire texture
-	SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
-}
-
-/**
- * Clear the color buffer (to be called before displaying a new frame)
- *
- * @param  color: color value to clear individual pixels with
- */
-void clear_color_buffer(uint32_t color) {
-	for (int y = 0; y < WINDOW_HEIGHT; y++) {
-		for (int x = 0; x < WINDOW_WIDTH; x++ ) {
-			color_buffer[(WINDOW_WIDTH * y) + x] = color;
-		}
-	}
-}
-
-/**
- * Clear the color buffer (to be called before displaying a new frame)
- *
- * @param  color: color value to clear individual pixels with
- */
-void draw_grid(uint32_t color1, uint32_t color2) {
-	for (int y = 0; y < WINDOW_HEIGHT; y++) {
-		for (int x = 0; x < WINDOW_WIDTH; x++ ) {
-			if(x % 10 == 0)
-				color_buffer[(WINDOW_WIDTH * y) + x] = color1;
-			else
-				color_buffer[(WINDOW_WIDTH * y) + x] = color2;
-		}
-	}
-}
-
 void render(void) {
     //set color of renderer to paint to screen
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -153,16 +64,10 @@ void render(void) {
 
     render_color_buffer();
     draw_grid(0xFF00FF00, 0x00000000);
+    draw_rect(20, 20, 55, 55, 0xFF0000FF);
 
     //actually present the color buffer
     SDL_RenderPresent(renderer);
-}
-
-void destroy_window(void) {
-	free(color_buffer);
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
 }
 
 int main(void) {
