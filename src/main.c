@@ -12,7 +12,8 @@ bool is_running = false;
 
 
 /**
- * (description for setup)
+ * Allocate required memory for color buffer and create the SDL texture
+ * that is used to display it
  */
 void setup(void) {
 	//allocate the required bytes in memory for the color buffer
@@ -62,9 +63,11 @@ void render(void) {
     //clear the whole window with the renderer of that color
     SDL_RenderClear(renderer);
 
+    //currently just playing around
     render_color_buffer();
     draw_grid(0xFF00FF00, 0x00000000);
     draw_rect(20, 20, 55, 55, 0xFF0000FF);
+    draw_pixel(30, 30, 0xFFFFFF00);
 
     //actually present the color buffer
     SDL_RenderPresent(renderer);

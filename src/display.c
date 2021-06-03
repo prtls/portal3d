@@ -80,6 +80,14 @@ void clear_color_buffer(uint32_t color) {
 }
 
 /**
+ *
+*/
+void draw_pixel(int x, int y, uint32_t color) {
+	if(x < window_width && y < window_height)
+		color_buffer[(window_width * y) + x] = color;
+}
+
+/**
  * Just a test function to draw a grid to the color buffer, will prob delete this
  *
  * @param  color1: color of grid border
