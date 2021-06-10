@@ -1,5 +1,5 @@
 //USER-DEFINED INCLUDES
-#include "../include/display.h"
+#include "display.h"
 
 //GLOBAL VARIABLES
 SDL_Window* window = NULL;
@@ -83,7 +83,7 @@ void clear_color_buffer(uint32_t color) {
  *
 */
 void draw_pixel(int x, int y, uint32_t color) {
-	if(x < window_width && y < window_height)
+	if(x >= 0 && x < window_width && y >= 0 && y < window_height)
 		color_buffer[(window_width * y) + x] = color;
 }
 
@@ -94,8 +94,8 @@ void draw_pixel(int x, int y, uint32_t color) {
  * @param  color2: color of background
  */
 void draw_grid(uint32_t color1, uint32_t color2) {
-	for (int y = 0; y < window_height; y+=2) {
-		for (int x = 0; x < window_width; x+=2 ) {
+	for (int y = 0; y < window_height; y++) {
+		for (int x = 0; x < window_width; x++ ) {
 			if(x % 10 == 0 || y % 10 == 0)
 				color_buffer[(window_width * y) + x] = color1;
 			else
@@ -117,7 +117,7 @@ void draw_rect(int xPos, int yPos, int width, int height, uint32_t color) {
 for (int y = 0; y < window_height; y++) {
 		for (int x = 0; x < window_width; x++ ) {
 			if (x >= xPos && y >= yPos && x <= xPos+width && y <= yPos+height)
-				color_buffer[(window_width * y) + x] = color;
+				draw_pixel(x, y, color);
 		}
 	}
 
