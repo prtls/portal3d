@@ -10,7 +10,7 @@
 
 //GLOBAL VARIABLES
 bool is_running = false;
-int fov_factor = 604;
+int fov_factor = 204;
 vec3_t camera_position = { .x = 0, .y = 0, .z = -5 };
 vec3_t cube_rotation = { .x = 0, .y = 0, .z = 0 };
 
@@ -129,8 +129,8 @@ void render(void) {
 	    draw_rect(
 		projected_point.x + (window_width/2),
 		projected_point.y + (window_height/2),
-		4,
-		4,
+		2,
+		2,
 		0xFF0055FF
 	    );
     }
@@ -160,3 +160,4 @@ int main(void) {
 
     return 0;
 }
+
