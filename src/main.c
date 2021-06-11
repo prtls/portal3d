@@ -10,7 +10,7 @@
 
 //GLOBAL VARIABLES
 bool is_running = false;
-int fov_factor = 304;
+int fov_factor = 604;
 vec3_t camera_position = { .x = 0, .y = 0, .z = -5 };
 vec3_t cube_rotation = { .x = 0, .y = 0, .z = 0 };
 
@@ -103,10 +103,14 @@ vec2_t orthoProject(vec3_t point) {
 
 void update(void) {
 	cube_rotation.y += 0.1;
+	cube_rotation.x += 0.1;
+	cube_rotation.z += 0.1;
 
    for( int i = 0; i < NUM_POINTS; i++) {
 	   vec3_t point = cube_points[i];
 	   vec3_t transformed_point = vec3_rotate_y(point, cube_rotation.y);
+		 transformed_point = vec3_rotate_x(transformed_point, cube_rotation.x);
+		 transformed_point = vec3_rotate_z(transformed_point, cube_rotation.z);
 	   //translate the points away from the camera
 	   transformed_point.z -= camera_position.z;
 	   //project the point orthographically
@@ -125,9 +129,9 @@ void render(void) {
 	    draw_rect(
 		projected_point.x + (window_width/2),
 		projected_point.y + (window_height/2),
-		2,
-		2,
-		0xFFB2942C
+		4,
+		4,
+		0xFF0055FF
 	    );
     }
 
@@ -156,4 +160,3 @@ int main(void) {
 
     return 0;
 }
-
