@@ -6,8 +6,8 @@ SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 uint32_t* color_buffer = NULL;
 SDL_Texture* color_buffer_texture = NULL;
-int window_width = 240;
-int window_height = 160;
+int window_width = 800;
+int window_height = 600;
 
 /**
  * Initializes an SDL window and the renderer for that window
@@ -21,14 +21,21 @@ bool initialize_window(void) {
         fprintf(stderr, "Error initializing SDL.\n");
         return false;
     }
+
+		//Use SDL to query what the fullscreen dimensions are
+		SDL_DisplayMode display_mode;
+		SDL_GetCurrentDisplayMode(0, &display_mode);
+		window_width = display_mode.w;
+		window_height = display_mode.h;
+
     //Create an SDL Window
     //args: window title, top left x/y pos, size, custom flags
     window = SDL_CreateWindow(
         NULL,
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
-        800,
-        600,
+        window_width,
+        window_height,
         SDL_WINDOW_BORDERLESS
     );
     if (!window) {
@@ -113,14 +120,14 @@ void draw_grid(uint32_t color1, uint32_t color2) {
  * @param  height: pixel height of rectangle
  * @param  color: color of rectangle
  */
-void draw_rect(int xPos, int yPos, int width, int height, uint32_t color) {
-for (int y = 0; y < window_height; y++) {
-		for (int x = 0; x < window_width; x++ ) {
-			if (x >= xPos && y >= yPos && x <= xPos+width && y <= yPos+height)
-				draw_pixel(x, y, color);
-		}
-	}
-
+void draw_rect(int x, int y, int width, int height, uint32_t color) {
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            int current_x = x + i;
+            int current_y = y + j;
+            draw_pixel(current_x, current_y, color);
+        }
+    }
 }
 
 
@@ -130,4 +137,3 @@ void destroy_window(void) {
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 }
-
