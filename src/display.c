@@ -25,8 +25,8 @@ bool initialize_window(void) {
 		//Use SDL to query what the fullscreen dimensions are
 		SDL_DisplayMode display_mode;
 		SDL_GetCurrentDisplayMode(0, &display_mode);
-		window_width = display_mode.w;
-		window_height = display_mode.h;
+        window_width = display_mode.w;
+        window_height = display_mode.h;
 
     //Create an SDL Window
     //args: window title, top left x/y pos, size, custom flags
@@ -95,6 +95,83 @@ void draw_pixel(int x, int y, uint32_t color) {
 }
 
 /**
+ *
+*/
+void draw_thick_pixel(int x, int y, uint32_t color) {
+	if(x >= 0 && x < window_width && y >= 0 && y < window_height) {
+		color_buffer[(window_width * y) + x] = color;
+		color_buffer[(window_width * (y+1)) + x] = color;
+		color_buffer[(window_width * y) + (x+1)] = color;
+		color_buffer[(window_width * (y-1)) + x] = color;
+		color_buffer[(window_width * y) + (x-1)] = color;
+		color_buffer[(window_width * (y+1)) + (x+1)] = color;
+		color_buffer[(window_width * (y-1)) + (x+1)] = color;
+		color_buffer[(window_width * (y-1)) + (x-1)] = color;
+		color_buffer[(window_width * (y+1)) + (x-1)] = color;
+	}
+}
+
+void draw_horizon() {
+//TODO: Make this not horrifically retarded (use switch(?), simplify checked values and make higher resolution color steps)
+	uint32_t color = 0xFF000000;
+	for (int y = 0; y < window_height; y++) {
+        switch(y%5) {
+            case 0: (color = 0xFF330000);
+                    break;
+        }
+
+		for (int x = 0; x < window_width; x++) {
+			color_buffer[(window_width * y) + x] = color;
+		}
+	}
+    // ORIGINAL 'LIGHT' IMPLEMENTATION
+    /*for (int y = 0; y < window_height; y++) {
+		if (y >= window_height/10 && y <= 2*(window_height/10)) {
+			color = 0xFFAA9933;
+		}
+
+		else if (y >= 2*(window_height/10) && y <= 3*(window_height/10)) {
+			color = 0xFFAA9955;
+		}
+
+		else if (y >= 3*(window_height/10) && y <= 4*(window_height/10)) {
+			color = 0xFFAA9977;
+		}
+
+		else if (y >= 4*(window_height/10) && y <= 5*(window_height/10)) {
+			color = 0xFFAA9999;
+		}
+
+		else if (y >= 5*(window_height/10) && y <= 6*(window_height/10)) {
+			color = 0xFFAA99BB;
+		}
+
+		else if (y >= 6*(window_height/10) && y <= 7*(window_height/10)) {
+			color = 0xFF0099FF;
+		}
+
+		else if (y >= 7*(window_height/10) && y <= 8*(window_height/10)) {
+			color = 0xFF0077EE;
+		}
+
+		else if (y >= 8*(window_height/10) && y <= 9*(window_height/10)) {
+			color = 0xFF0055DD;
+		}
+
+		else if (y >= 9*(window_height/10) && y <= (window_height/10)) {
+			color = 0xFF0033CC;
+		}
+
+		for (int x = 0; x < window_width; x++) {
+			color_buffer[(window_width * y) + x] = color;
+		}
+	}
+*/
+
+
+}
+
+/**
  * Just a test function to draw a grid to the color buffer, will prob delete this
  *
  * @param  color1: color of grid border
@@ -153,7 +230,8 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
 	float current_y = y0;
 
 	for (int i = 0; i <= side_length; i++) {
-		draw_pixel(round(current_x), round(current_y), color);
+		//draw_pixel(round(current_x), round(current_y), color);
+		draw_pixel(round(current_x), round(current_y), color); //experimenting. delete when continuing course
 		current_x += x_inc;
 		current_y += y_inc;
 	}
