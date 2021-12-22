@@ -1,14 +1,25 @@
-//USER-DEFINED INCLUDES
 #include "display.h"
 
-//GLOBAL VARIABLES
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
-uint32_t* color_buffer = NULL;
-SDL_Texture* color_buffer_texture = NULL;
-int window_width = 800;
-int window_height = 600;
+static SDL_Window* window = NULL;
+static SDL_Renderer* renderer = NULL;
 
+static uint32_t* color_buffer = NULL;
+static float* z_buffer = NULL;
+
+static SDL_Texture* color_buffer_texture = NULL;
+static int window_width = 800;
+static int window_height = 600;
+
+static int render_method;
+static int cull_method;
+
+int get_window_width(void) {
+    return window_width;
+}
+
+int get_window_height(void) {
+    return window_height;
+}
 /**
  * Initializes an SDL window and the renderer for that window
  *
@@ -51,6 +62,24 @@ bool initialize_window(void) {
         return false;
     }
 
+    //allocate the required memory for the color buffer
+	color_buffer = (uint32_t*) malloc(sizeof(uint32_t) * window_width * window_height);
+
+    //allocate the required memory for the depth buffer
+    z_buffer = (float*)malloc(sizeof(float) * window_width * window_height);
+
+	// Create SDL texture that is used to display the color buffer
+	// Remember, the color buffer is just a data structure that holds the pixel values,
+	// while the texture is the actual thing that will be displayed, so we need to
+	// copy our color buffer into it
+	color_buffer_texture = SDL_CreateTexture(
+		renderer, //renderer that will be responsible for displaying this texture
+		SDL_PIXELFORMAT_RGBA32, //choose an appropriate pixel format
+		SDL_TEXTUREACCESS_STREAMING, //pass this when we're going to continuously stream this texture
+		window_width, //width of the actual texture (not always window width)
+		window_height //height of actual texture (not always window height)
+	);
+
     return true;
 }
 
@@ -79,10 +108,18 @@ void render_color_buffer(void) {
  * @param  color: color value to clear individual pixels with
  */
 void clear_color_buffer(uint32_t color) {
-	for (int y = 0; y < window_height; y++) {
-		for (int x = 0; x < window_width; x++ ) {
-			color_buffer[(window_width * y) + x] = color;
-		}
+    for (int i = 0; i < window_width * window_height; i++) {
+        color_buffer[i] = color;
+    }
+}
+
+
+/**
+ * Clear the depth buffer (to be called before displaying a new frame)
+ */
+void clear_z_buffer(void) {
+    for (int i = 0; i < window_width * window_height; i++) {
+            z_buffer[i] = 1.0;
 	}
 }
 
@@ -90,8 +127,10 @@ void clear_color_buffer(uint32_t color) {
  *
 */
 void draw_pixel(int x, int y, uint32_t color) {
-	if(x >= 0 && x < window_width && y >= 0 && y < window_height)
-		color_buffer[(window_width * y) + x] = color;
+	if(x < 0 || x >= window_width || y < 0 || y >=  window_height) {
+        return;
+    }
+    color_buffer[(window_width * y) + x] = color;
 }
 
 /**
@@ -172,6 +211,27 @@ void draw_horizon() {
 }
 
 /**
+ * set render method (textured, wireframe, solid)
+ */
+void set_render_method(int method) {
+    render_method = method;
+}
+
+/**
+ * enable or disable backface culling
+ */
+void set_cull_method(int method) {
+    cull_method = method;
+}
+
+/**
+ * check if backface culling is enabled
+ */
+bool is_cull_backface(void) {
+    return cull_method == CULL_BACKFACE;
+}
+
+/**
  * Just a test function to draw a grid to the color buffer, will prob delete this
  *
  * @param  color1: color of grid border
@@ -235,15 +295,6 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
 		current_x += x_inc;
 		current_y += y_inc;
 	}
-}
-
-/**
- * Draw triangle to the color buffer (calls draw_line)
- */
-void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
-	draw_line(x0, y0, x1, y1, color);
-	draw_line(x1, y1, x2, y2, color);
-	draw_line(x2, y2, x0, y0, color);
 }
 
 void destroy_window(void) {
