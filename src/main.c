@@ -31,22 +31,6 @@ int grid_fg;
 triangle_t triangles_to_render[MAX_TRIANGLES];
 int num_triangles_to_render = 0;
 
-//TODO: make a settings.h file to store these enums
-
-enum cull_method {
-    CULL_NONE,
-    CULL_BACKFACE
-} cull_method;
-
-enum render_method {
-    RENDER_WIRE,
-    RENDER_WIRE_VERTEX,
-    RENDER_FILL_TRIANGLE,
-    RENDER_FILL_TRIANGLE_WIRE,
-    RENDER_TEXTURED,
-    RENDER_TEXTURED_WIRE
-} render_method;
-
 mat4_t proj_matrix;
 mat4_t view_matrix;
 
@@ -57,8 +41,10 @@ mat4_t view_matrix;
 void setup(void) {
     // initialize render mode
     set_render_method(RENDER_TEXTURED);
-    cull_method = CULL_BACKFACE;
+    set_cull_method(CULL_BACKFACE);
 
+    // initialize the scene light direction
+    init_light(vec3_new(0, 0, 1));
 
     // initialize perspective projection matrix
     float aspect_ratio_x = (float)get_window_width() / (float)get_window_height();
@@ -77,11 +63,8 @@ void setup(void) {
     //note: loading cube mesh data instead of cube.obj creates an insane effect
 	//load_cube_mesh_data();
 
-    // Loads the vertex and face values for the mesh data structure
-    load_obj_file_data("./assets/ResidentialBuildings009.obj");
-
-    // Load the texture information from an external PNG file
-    load_png_texture_data("./assets/cube.png");
+    load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1), vec3_new(-3, 0, +8), vec3_new(0, 0, 0));
+    load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1), vec3_new(+3, 0, +9), vec3_new(0, 0, 0));
 
 }
 
@@ -145,33 +128,48 @@ void process_input(void) {
                     set_cull_method(CULL_NONE);
                     break;
                 }
+                // up arrow: float upward
                 if (event.key.keysym.sym == SDLK_UP) {
-                    camera.position.y += 3.0 * delta_time;
+                    move_camera_y(3.0 * delta_time);
                     break;
                 }
+                // down arrow: float downward
                 if (event.key.keysym.sym == SDLK_DOWN) {
-                    camera.position.y -= 3.0 * delta_time;
+                    move_camera_y(-3.0 * delta_time);
                     break;
                 }
+                // 'a' key: strafe left
                 if (event.key.keysym.sym == SDLK_a) {
-                    camera.yaw_angle -= 1.0 * delta_time;
+                    rotate_camera_z(-1.0 * delta_time);
                     break;
                 }
+                // 'd' key: strafe right
                 if (event.key.keysym.sym == SDLK_d) {
-                    camera.yaw_angle += 1.0 * delta_time;
+                    rotate_camera_z(1.0 * delta_time);
                     break;
                 }
+                // 'e' key: look up
+                if (event.key.keysym.sym == SDLK_e) {
+                    rotate_camera_x(1.0 * delta_time);
+                    break;
+                }
+                // 'q' key: look down
+                if (event.key.keysym.sym == SDLK_q) {
+                    rotate_camera_x(-1.0 * delta_time);
+                    break;
+                }
+                // 'w' key: move fwd
                 if (event.key.keysym.sym == SDLK_w) {
-                    camera.fwd_velocity = vec3_mul(camera.direction, 5.0 * delta_time);
-                    camera.position = vec3_add(camera.position, camera.fwd_velocity);
+                    set_camera_fwd_vel(vec3_mul(get_camera_direction(), 5.0 * delta_time));
+                    set_camera_position(vec3_add(get_camera_position(), get_camera_fwd_vel()));
                     break;
                 }
+                // 's' key: move back
                 if (event.key.keysym.sym == SDLK_s) {
-                    camera.fwd_velocity = vec3_mul(camera.direction, 5.0 * delta_time);
-                    camera.position = vec3_sub(camera.position, camera.fwd_velocity);
+                    set_camera_fwd_vel(vec3_mul(get_camera_direction(), 5.0 * delta_time));
+                    set_camera_position(vec3_sub(get_camera_position(), get_camera_fwd_vel()));
                     break;
                 }
-
                 break;
         }
     }
@@ -204,44 +202,44 @@ void update(void) {
     // Initialize counter of triangles to render for the current frame
     num_triangles_to_render = 0;
 
+// Loop all the meshes of our scene
+    for (int mesh_index = 0; mesh_index < get_num_meshes(); mesh_index++) {
+        mesh_t* mesh = get_mesh(mesh_index);
 	// Change mesh scale/rotation values on every frame
-	mesh.rotation.x += 0.00;
-	mesh.rotation.y += 0.00;
-	mesh.rotation.z += 0.00;
-    mesh.translation.z = 5.0;
+	// mesh.rotation.x += 0.00;
+	// mesh.rotation.y += 0.00;
+	// mesh.rotation.z += 0.00;
+  // mesh.translation.z = 5.0;
 
     // If you want to automatically animate the camera:
         // camera.position.x += 0.008 * delta_time;
         // camera.position.y += 0.008 * delta_time;
 
-    // initialize target looking at positive z axis
-    vec3_t target = { 0, 0, 1 };
-    mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw_angle);
-    camera.direction = vec3_from_vec4(mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
+ // Create scale, translation and rotation matrices that will be used to multiply the mesh vertices,
+    // passing in the corresponding values (that are changing over time) in the mesh struct of the corresponding object
+    mat4_t scale_matrix = mat4_make_scale(mesh->scale.x, mesh->scale.y, mesh->scale.z);
+        mat4_t translation_matrix = mat4_make_translation(mesh->translation.x, mesh->translation.y, mesh->translation.z);
+        mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh->rotation.x);
+        mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh->rotation.y);
+        mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh->rotation.z);
 
-    target = vec3_add(camera.position, camera.direction);
-    vec3_t up_direction = { 0, 1, 0 };
+
+    // Update camera look at target to create view matrix
+    vec3_t target = get_camera_lookat_target();
+    vec3_t up_direction = vec3_new(0, 1, 0);
 
     // Create the view matrix
-    view_matrix = mat4_look_at(camera.position, target, up_direction);
+    view_matrix = mat4_look_at(get_camera_position(), target, up_direction);
 
-    // Create scale, translation and rotation matrices that will be used to multiply the mesh vertices,
-    // passing in the corresponding values (that are changing over time) in the mesh struct of the corresponding object
-    mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
-    mat4_t translation_matrix = mat4_make_translation(mesh.translation.x, mesh.translation.y, mesh.translation.z);
-    mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh.rotation.x);
-    mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.y);
-    mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.z);
-
-	//loop all triangle faces of our mesh
-	int num_faces = array_length(mesh.faces);
+   	//loop all triangle faces of our mesh
+	int num_faces = array_length(mesh->faces);
 	for(int i = 0; i < num_faces; i++) {
-		face_t mesh_face = mesh.faces[i];
+		face_t mesh_face = mesh->faces[i];
 
 		vec3_t face_vertices[3];
-		face_vertices[0] = mesh.vertices[mesh_face.a];
-		face_vertices[1] = mesh.vertices[mesh_face.b];
-		face_vertices[2] = mesh.vertices[mesh_face.c];
+		face_vertices[0] = mesh->vertices[mesh_face.a - 1];
+		face_vertices[1] = mesh->vertices[mesh_face.b - 1];
+		face_vertices[2] = mesh->vertices[mesh_face.c - 1];
 
 		vec4_t transformed_vertices[3];
 
@@ -338,7 +336,15 @@ void update(void) {
             for(int j = 0; j < 3; j++) {
 
                 // project the current vertex (multiply it by the projection matrix)
-                projected_points[j] = mat4_mul_vec4_project(proj_matrix, triangle_after_clipping.points[j]);
+                projected_points[j] = mat4_mul_vec4(proj_matrix, triangle_after_clipping.points[j]);
+
+
+                        // Perform perspective divide
+                    if (projected_points[j].w != 0) {
+                        projected_points[j].x /= projected_points[j].w;
+                        projected_points[j].y /= projected_points[j].w;
+                        projected_points[j].z /= projected_points[j].w;
+                    }
 
                 // On-screen y coordinates are processed in the opposite direction in which they are
                 // read in from .obj files, so we will invert y coordinates here
@@ -350,14 +356,14 @@ void update(void) {
 
                 // scale and translate the projected points to the middle of screen
                 projected_points[j].x += (get_window_width() / 2.0);
-                projected_points[j].y += (get_window_heighti() / 2.0);
+                projected_points[j].y += (get_window_height() / 2.0);
 
             }
 
             // Calculate the average depth of each face based on their respective vertices after transformation
 
             // Calculate shade intensity based on how aligned the face normal and light normal are
-            float light_intensity_factor = -vec3_dot(normal, light.direction);
+            float light_intensity_factor = -vec3_dot(normal, get_light_direction());
 
             // Calculate triangle color based on light angle
             uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
@@ -385,6 +391,7 @@ void update(void) {
                 },
                 // assign this triangle's color
                 .color = triangle_color,
+                .texture = mesh->texture
             };
 
         //save the projected triangles in the array of triangles to render
@@ -393,27 +400,19 @@ void update(void) {
         }
 
     }
-/*
-    // Sort the triangles to render by their avg_depth
-    int num_triangles = array_length(triangles_to_render);
-    for (int i = 0; i < num_triangles; i++) {
-        for (int j = i; j < num_triangles; j++) {
-            if (triangles_to_render[i].avg_depth < triangles_to_render[j].avg_depth) {
-                // Swap the triangles positions in the array as needed
-                triangle_t temp = triangles_to_render[i];
-                triangles_to_render[i] = triangles_to_render[j];
-                triangles_to_render[j] = temp;
-            }
-        }
-    }
-*/
+
+}
 }
 }
 
 // TODO : Something in this fct is causing slower performance and choppy-looking edges (compare
 // to course code) fix whatever bug is causing this
 void render(void) {
-    SDL_RenderClear(renderer);
+
+    // Clear all arrays to get ready for next frame
+    clear_color_buffer(0xFF000000);
+    clear_z_buffer();
+
     draw_grid(0x00040404, 0x00020000);
     //draw_horizon();
 
@@ -423,7 +422,7 @@ void render(void) {
 	    triangle_t triangle = triangles_to_render[i];
 
         // if render mode is set to either fill or fill+wireframe...
-        if (render_method == RENDER_FILL_TRIANGLE || render_method == RENDER_FILL_TRIANGLE_WIRE) {
+        if (should_render_filled_triangles()) {
             // draw filled triangle
             draw_filled_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, // vertex A
@@ -434,7 +433,7 @@ void render(void) {
         }
 
         // if render mode is set to either wireframe, wireframe+vertices fill+wireframe or textured+fireframe...
-        if (render_method == RENDER_WIRE|| render_method == RENDER_WIRE_VERTEX|| render_method == RENDER_FILL_TRIANGLE_WIRE || render_method == RENDER_TEXTURED_WIRE) {
+        if (should_render_wireframe()) {
             // draw unfilled triangle
             draw_triangle(
                 triangle.points[0].x, triangle.points[0].y, // vertex A
@@ -446,7 +445,7 @@ void render(void) {
         /*
         // AFFINE MAPPING:
         // if render mode is set to texture or texture+wireframe...
-        if (render_method == RENDER_TEXTURED || render_method == RENDER_TEXTURED_WIRE) {
+        if (should_render_textured_triangles()) {
             // draw textured triangle
             draw_textured_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.texcoords[0].u, triangle.texcoords[0].v, // vertex A
@@ -460,43 +459,35 @@ void render(void) {
 
 
         // if render mode is set to texture or texture+wireframe...
-        if (render_method == RENDER_TEXTURED || render_method == RENDER_TEXTURED_WIRE) {
+        if (should_render_textured_triangles()) {
             // draw textured triangle
             draw_textured_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, triangle.texcoords[0].u, triangle.texcoords[0].v, // vertex A
                 triangle.points[1].x, triangle.points[1].y, triangle.points[1].z, triangle.points[1].w, triangle.texcoords[1].u, triangle.texcoords[1].v, // vertex B
                 triangle.points[2].x, triangle.points[2].y, triangle.points[2].z, triangle.points[2].w, triangle.texcoords[2].u, triangle.texcoords[2].v, // vertex C
-                mesh_texture
+                triangle.texture
             );
 
         }
 
         // if render mode is set to wireframe+vertices, render little rectangles at each vertex
-        if (render_method == RENDER_WIRE_VERTEX) {
+        if (should_render_wire_vertex()) {
             draw_rect(triangle.points[0].x - 3, triangle.points[0].y - 3, 6, 6, 0xFFFF0000);
             draw_rect(triangle.points[1].x - 3, triangle.points[1].y - 3, 6, 6, 0xFFFF0000);
             draw_rect(triangle.points[2].x - 3, triangle.points[2].y - 3, 6, 6, 0xFFFF0000);
         }
     }
 
-    // Finally draw the color buffer to the SDL window
+    // Finally draw the color buffer to the SDL window and actually present the color buffer
     render_color_buffer();
 
-    // Clear all arrays to get ready for next frame
-    clear_color_buffer(0xFF000000);
-    clear_z_buffer();
 
-    //actually present the color buffer
-    SDL_RenderPresent(renderer);
-}
+    }
 
 // free the memory that was dynamically allocated by program
 void free_resources(void) {
-	free(color_buffer);
-    free(z_buffer);
-    upng_free(png_texture);
-	array_free(mesh.faces);
-	array_free(mesh.vertices);
+    free_meshes();
+    destroy_window();
 }
 
 int main(void) {
@@ -518,4 +509,3 @@ int main(void) {
 
     return 0;
 }
-

@@ -7,11 +7,11 @@ static uint32_t* color_buffer = NULL;
 static float* z_buffer = NULL;
 
 static SDL_Texture* color_buffer_texture = NULL;
-static int window_width = 800;
-static int window_height = 600;
+static int window_width = 640;
+static int window_height = 480;
 
-static int render_method;
-static int cull_method;
+static int render_method = 0;
+static int cull_method = 0;
 
 int get_window_width(void) {
     return window_width;
@@ -36,17 +36,19 @@ bool initialize_window(void) {
 		//Use SDL to query what the fullscreen dimensions are
 		SDL_DisplayMode display_mode;
 		SDL_GetCurrentDisplayMode(0, &display_mode);
-        window_width = display_mode.w;
-        window_height = display_mode.h;
+    int fullscreen_width = display_mode.w;
+    int fullscreen_height = display_mode.h;
+
+    // If desired, you can create a 'pixelation factor' var and divide width and height by it
 
     //Create an SDL Window
     //args: window title, top left x/y pos, size, custom flags
     window = SDL_CreateWindow(
         NULL,
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        window_width,
-        window_height,
+        0,
+        0,
+        fullscreen_width,
+        fullscreen_height,
         SDL_WINDOW_BORDERLESS
     );
     if (!window) {
@@ -54,31 +56,31 @@ bool initialize_window(void) {
         return false;
     }
 
-    // Create a SDL renderer
-    //args: ptr to window it belongs to, display device (-1 = default graphics driver), custom flags
+    // Create an SDL renderer
+    // args: ptr to window it belongs to, display device (-1 = default graphics driver), custom flags
     renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer) {
         fprintf(stderr, "Error creating SDL renderer.\n");
         return false;
     }
 
-    //allocate the required memory for the color buffer
-	color_buffer = (uint32_t*) malloc(sizeof(uint32_t) * window_width * window_height);
+    // allocate the required memory for the color buffer
+    color_buffer = (uint32_t*) malloc(sizeof(uint32_t) * window_width * window_height);
 
-    //allocate the required memory for the depth buffer
+    // allocate the required memory for the depth buffer
     z_buffer = (float*)malloc(sizeof(float) * window_width * window_height);
 
-	// Create SDL texture that is used to display the color buffer
-	// Remember, the color buffer is just a data structure that holds the pixel values,
-	// while the texture is the actual thing that will be displayed, so we need to
-	// copy our color buffer into it
-	color_buffer_texture = SDL_CreateTexture(
-		renderer, //renderer that will be responsible for displaying this texture
-		SDL_PIXELFORMAT_RGBA32, //choose an appropriate pixel format
-		SDL_TEXTUREACCESS_STREAMING, //pass this when we're going to continuously stream this texture
-		window_width, //width of the actual texture (not always window width)
-		window_height //height of actual texture (not always window height)
-	);
+    // Create SDL texture that is used to display the color buffer
+    // Remember, the color buffer is just a data structure that holds the pixel values,
+    // while the texture is the actual thing that will be displayed, so we need to
+    // copy our color buffer into it
+    color_buffer_texture = SDL_CreateTexture(
+        renderer, //renderer that will be responsible for displaying this texture
+		    SDL_PIXELFORMAT_RGBA32, //choose an appropriate pixel format
+		    SDL_TEXTUREACCESS_STREAMING, //pass this when we're going to continuously stream this texture
+		    window_width, //width of the actual texture (not always window width)
+		    window_height //height of actual texture (not always window height)
+	  );
 
     return true;
 }
@@ -89,17 +91,22 @@ bool initialize_window(void) {
  * the texture so they can be displayed
  */
 void render_color_buffer(void) {
-	//copy all pixel values in color_buffer to color_buffer_texture
-	SDL_UpdateTexture(
-		color_buffer_texture, //the texture to be updated
-		NULL, //used if we only want subsection of texture, we want the entire thing in this case
-		color_buffer, //source to copy to texture
-		(int)(window_width * sizeof(uint32_t)) //texture pitch (size, in bytes, of each row)
-	);
+    //copy all pixel values in color_buffer to color_buffer_texture
+    SDL_UpdateTexture(
+		    color_buffer_texture, //the texture to be updated
+		    NULL, //used if we only want subsection of texture, we want the entire thing in this case
+		    color_buffer, //source to copy to texture
+		    (int)(window_width * sizeof(uint32_t)) //texture pitch (size, in bytes, of each row)
+	  );
 
-	//Go and actually display these things
-	//3rd and 4th args are to specify a subsection of the texture, NULL if we want entire texture
-	SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+	  // copy the color buffer into the renderer
+	  // 3rd and 4th args are to specify a subsection of the texture, NULL if we want entire texture
+    // note that RenderCopy scales color buffer to renderer, so you can simulate lower resolution displays
+	  SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+
+    // actually present the color buffer
+    SDL_RenderPresent(renderer);
+
 }
 
 /**
@@ -123,10 +130,28 @@ void clear_z_buffer(void) {
 	}
 }
 
+float get_zbuffer_at(int x, int y) {
+    // if the position passed in is outside the boundaries, return starting point
+    if (x < 0 || x >= window_width || y < 0 || y >= window_height) {
+        return 1.0;
+    }
+    return z_buffer[(window_width * y) + x];
+}
+
+void set_zbuffer_at(int x, int y, float value) {
+    // if the position passed in is outside the boundaries, return
+    if (x < 0 || x >= window_width || y < 0 || y >= window_height) {
+        return;
+    }
+    z_buffer[(window_width * y) + x] = value;
+
+}
+
 /**
  *
 */
 void draw_pixel(int x, int y, uint32_t color) {
+  // if target pixel is out of bounds, return
 	if(x < 0 || x >= window_width || y < 0 || y >=  window_height) {
         return;
     }
@@ -231,6 +256,35 @@ bool is_cull_backface(void) {
     return cull_method == CULL_BACKFACE;
 }
 
+bool should_render_filled_triangles(void){
+    return (
+            render_method == RENDER_FILL_TRIANGLE ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE
+    );
+}
+
+bool should_render_textured_triangles(void) {
+    return (
+            render_method == RENDER_TEXTURED ||
+            render_method == RENDER_TEXTURED_WIRE
+    );
+}
+
+bool should_render_wireframe(void) {
+    return (
+            render_method == RENDER_WIRE ||
+            render_method == RENDER_WIRE_VERTEX ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE ||
+            render_method == RENDER_TEXTURED_WIRE
+    );
+}
+
+bool should_render_wire_vertex(void) {
+    return (
+            render_method == RENDER_WIRE_VERTEX
+    );
+}
+
 /**
  * Just a test function to draw a grid to the color buffer, will prob delete this
  *
@@ -298,8 +352,9 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
 }
 
 void destroy_window(void) {
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+    free(color_buffer);
+    free(z_buffer);
+	  SDL_DestroyRenderer(renderer);
+	  SDL_DestroyWindow(window);
+	  SDL_Quit();
 }
-

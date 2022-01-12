@@ -77,12 +77,12 @@ void draw_triangle_pixel(
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
     // Only draw the pixel if the depth value is less than the one previously stored in the z-buffer
-    if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x]) {
+    if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
         // Draw a pixel at position (x,y) with a solid color
         draw_pixel(x, y, color);
 
         // Update the z-buffer value with the 1/w of this current pixel
-        z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+        set_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }
 
@@ -175,7 +175,7 @@ void draw_filled_triangle(
 * Draw the textured pixel at position x and y using interpolation
 **/
 void draw_texel(
-    int x, int y, uint32_t* texture,
+    int x, int y, upng_t* texture,
     vec4_t point_a, vec4_t point_b, vec4_t point_c,
     tex2_t a_uv, tex2_t b_uv, tex2_t c_uv
 ) {
@@ -206,6 +206,10 @@ void draw_texel(
     interpolated_u /= interpolated_reciprocal_w;
     interpolated_v /= interpolated_reciprocal_w;
 
+    // get texture dimenions
+    int texture_width = upng_get_width(texture);
+    int texture_height = upng_get_height(texture);;
+
     // Map the UV coordinate to the full texture width and height
     // Truncating within the allocated dimensions at the end of these lines is a messy hack
     // to make sure we are not trying to write to a value outside of allocated memory
@@ -219,11 +223,13 @@ void draw_texel(
 
     // As long as the current pixel is in front of what is there currently
     // (i.e., depth value of this pixel is LESS than the one previously stored in z-buffer)...
-    if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x]) {
+    if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
+        // get buffer of colors from the texture
+        uint32_t* texture_buffer = (uint32_t*)upng_get_buffer(texture);
         // ...draw the pixel
-        draw_pixel(x, y, texture[(texture_width * tex_y) + tex_x]);
+        draw_pixel(x, y, texture_buffer[(texture_width * tex_y) + tex_x]);
         // ... and update the z-buffer value with the 1/w (1 / old z in camera space) of this current pixel
-        z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+        set_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }
 
@@ -262,7 +268,7 @@ void draw_textured_triangle(
     int x0, int y0, float z0, float w0, float u0, float v0,
     int x1, int y1, float z1, float w1, float u1, float v1,
     int x2, int y2, float z2, float w2, float u2, float v2,
-    uint32_t* texture
+    upng_t* texture
 ) {
     // We need to sort the vertices by y-coordinate ascending (y0 < y1 < y2)
     if (y0 > y1) {
@@ -578,4 +584,3 @@ void draw_textured_triangle(
     }
 }
 */
-
