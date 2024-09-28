@@ -1,10 +1,7 @@
-//STANDARD INCLUDES
 #include <stdio.h>
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 #include <math.h>
-
-//USER-DEFINED INCLUDES
 #include "display.h"
 #include "vector.h"
 #include "mesh.h"
@@ -17,8 +14,6 @@
 #include "camera.h"
 #include "clipping.h"
 
-
-//GLOBAL VARIABLES
 bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0;
@@ -58,11 +53,7 @@ void setup(void) {
     // Initialize frustum planes with a point and a normal
     init_frustum_planes(fov_x, fov_y, z_near, z_far);
 
-	//load the cube values in the mesh data structure
-
-    //note: loading cube mesh data instead of cube.obj creates an insane effect
-	//load_cube_mesh_data();
-
+    // Load mesh data
     load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1), vec3_new(-3, 0, +8), vec3_new(0, 0, 0));
     load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1), vec3_new(+3, 0, +9), vec3_new(0, 0, 0));
 
@@ -176,11 +167,9 @@ void process_input(void) {
 }
 
 void update(void) {
-
-
-	//block program until we have reached the millisecond duration we designated for 1 frame
-	//in FRAME_TARGET_TIME (for 30 fps that's 33.333ms)
-	//this locks our animation to our constant framerate so that fps is machine independent:
+	// block program until we have reached the millisecond duration we designated for 1 frame
+	// in FRAME_TARGET_TIME (for 30 fps that's 33.333ms)
+	// this locks our animation to our constant framerate so that fps is machine independent:
 	int time_to_wait = FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
 	//only delay execution if we are running too fast:
 	if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME)
@@ -188,8 +177,8 @@ void update(void) {
 
     delta_time = (SDL_GetTicks() - previous_frame_time) / 1000.0;
 
-	//calculate how many ms have passed since last frame
-	previous_frame_time = SDL_GetTicks(); //how many ms have passed since SDL_init()
+    //calculate how many ms have passed since last frame
+    previous_frame_time = SDL_GetTicks(); //how many ms have passed since SDL_init()
 
     if (previous_frame_time % 5 == 0) {
         grid_bg = 0xFF000000;
@@ -205,24 +194,23 @@ void update(void) {
 // Loop all the meshes of our scene
     for (int mesh_index = 0; mesh_index < get_num_meshes(); mesh_index++) {
         mesh_t* mesh = get_mesh(mesh_index);
-	// Change mesh scale/rotation values on every frame
+	// If you want to change mesh scale/rotation values on every frame:
 	// mesh.rotation.x += 0.00;
 	// mesh.rotation.y += 0.00;
 	// mesh.rotation.z += 0.00;
-  // mesh.translation.z = 5.0;
+  	// mesh.translation.z = 5.0;
 
-    // If you want to automatically animate the camera:
-        // camera.position.x += 0.008 * delta_time;
+    	// If you want to automatically animate the camera:
+	// camera.position.x += 0.008 * delta_time;
         // camera.position.y += 0.008 * delta_time;
 
- // Create scale, translation and rotation matrices that will be used to multiply the mesh vertices,
-    // passing in the corresponding values (that are changing over time) in the mesh struct of the corresponding object
-    mat4_t scale_matrix = mat4_make_scale(mesh->scale.x, mesh->scale.y, mesh->scale.z);
-        mat4_t translation_matrix = mat4_make_translation(mesh->translation.x, mesh->translation.y, mesh->translation.z);
-        mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh->rotation.x);
-        mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh->rotation.y);
-        mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh->rotation.z);
-
+// Create scale, translation and rotation matrices that will be used to multiply the mesh vertices,
+// passing in the corresponding values (that are changing over time) in the mesh struct of the corresponding object
+mat4_t scale_matrix = mat4_make_scale(mesh->scale.x, mesh->scale.y, mesh->scale.z);
+mat4_t translation_matrix = mat4_make_translation(mesh->translation.x, mesh->translation.y, mesh->translation.z);
+mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh->rotation.x);
+mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh->rotation.y);
+mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh->rotation.z);
 
     // Update camera look at target to create view matrix
     vec3_t target = get_camera_lookat_target();
